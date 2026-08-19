@@ -4,11 +4,11 @@
 
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
-| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 334 |
+| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 345 |
 | [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 410 |
 | [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 180 |
 | [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 202 |
-| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 98 |
+| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 106 |
 
 전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
 
@@ -90,3 +90,28 @@
 **읽는 대신 실제 반복 횟수를 쟀다.** 이게 이 감사를 믿을 수 있게 만드는 부분이다 — 코퍼스를 디스크에서 읽는 것들이 진짜 위험한데, 재보니 법령 14건·PDF 구역 724개·문서 3건으로 전부 비어 있지 않았다. 처음엔 경로를 잘못 봐서 "코퍼스 없음"으로 읽었고, 그건 감사 결과가 아니라 제 실수였다.
 
 둘만 고쳤다. 둘 다 **다른 테스트에 기대어 의미를 얻고 있었다** — 컬렉션이 비어 있지 않다는 것을 자기가 아니라 옆 테스트가 붙잡고 있어서, 그 옆 테스트를 지우면 조용히 아무것도 안 하는 테스트가 된다. 지금은 각자 몇 개를 봤는지 말한다.
+
+---
+
+## 테스트하고 있던 코드가 그 코드가 아니었다
+
+변형 감사를 마치고 환경을 점검하다 나온 것. 네 저장소가 editable로 설치돼 있었는데, **설치 경로가 `/tmp/fresh/...`와 `/tmp/asc`** — 며칠 전 새-클론 검증 때 만든 사본이었고 지운 적이 없었다.
+
+각 저장소의 자기 테스트는 살아남았다. `sys.path.insert`로 자기 `src/`를 먼저 넣기 때문이다. **저장소를 넘는 테스트에는 그 보호가 없다** — `mcp-gateway`의 스위트는 `agent-safety-core`의 `core`를 로드하는데, `/tmp/asc`에서 찾아 **4일 묵은 원장을 상대로 검증하고 있었다.** 통과했다. 현재 원장이 망가져 있었어도 통과했을 것이다.
+
+CI는 이 문제에 노출되지 않는다 — 형제를 새로 체크아웃해 설치한다. 그래서 이 고장은 오래 쓴 개발 기계에서만 일어나고, 하필 거기서 보이지 않는다.
+
+[`tools/check_env.py`](tools/check_env.py)가 각 모듈이 어느 체크아웃으로 해석되는지 보고한다. 저장소를 검사하지 않는다 — **저장소가 검사받고 있는 방을 검사한다.** 어떤 저장소도 자기 자신에 대해 확인할 수 없는 것이다.
+
+### 그러다 `core`가 namespace 패키지인 걸 발견했다
+
+`core/__init__.py`가 없었다. namespace 조각은 경쟁하지 않고 **합쳐지고**, 작업 디렉터리의 `core/`가 `sys.path` 앞이라 이긴다. 무조건 승인하는 `ExecutionLedger`를 `core/ledger.py`에 두고 `from core.ledger import ExecutionLedger`를 했더니 그쪽이 import됐다 — **승인 강제가 존재 이유인 라이브러리에서**, 경고 없이.
+
+| | 로컬 `core/ledger.py` | 결과 |
+|---|---|---|
+| `__init__.py` 없음 | 있음 | **로컬 파일이 import됨** |
+| `__init__.py` 있음 | 있음 | 설치된 패키지가 이김 |
+
+같은 이유로 `document-intelligence`의 어댑터를 `document_intelligence.adapters.pdfplumber`로 옮겼다. `adapters`는 `agent-safety-core`도 내보내는 이름이라, 둘 다 설치하면 문서에 적힌 import가 `ModuleNotFoundError`가 됐다.
+
+**이 회차에 내 검사 도구가 세 번 틀렸다.** 최상위 패키지를 훑는 스크립트가 정규 패키지 둘을 namespace로 잘못 보고했고(그래서 잠시 내가 만든 결함으로 오해했다), 대조군 빌드가 두 번 캐시를 재사용해 무효였다. 셋 다 결함 옆에 같이 적어둔다 — 검사기가 틀리면 결론도 틀린다.

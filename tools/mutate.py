@@ -28,6 +28,13 @@ correct and simply unheld:
     and all 331 tests still passed.
   * mcp-gateway - the cross-repository log format claim was fixed on both sides
     and tested on one. Deleting this side's fallback passed all 192.
+
+Not everything worth breaking can be expressed as a string replacement. That
+`core` is a regular package rather than a namespace one is a property of a file
+*existing*, and a probe that emptied `core/__init__.py` would only be testing
+that a syntax error fails the suite. That one is verified by deleting the file
+by hand; `agent-safety-core/tests/test_package_resolution.py` goes red on five
+tests when it is gone.
 """
 
 from __future__ import annotations
@@ -142,7 +149,7 @@ PROBES = (
           "return min(scores) if scores else None",
           "return sum(scores)/len(scores) if scores else None",
           "weakest link, not the average"),
-    Probe("document-intelligence", "adapters/pdfplumber_adapter.py",
+    Probe("document-intelligence", "src/document_intelligence/adapters/pdfplumber.py",
           'return "unclassified"', 'return "degenerate_box"',
           "an unrecognised rejection is not disguised"),
 )
