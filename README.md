@@ -4,11 +4,11 @@
 
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
-| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 304 |
-| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 284 |
-| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 177 |
-| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 155 |
-| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 67 |
+| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 334 |
+| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 410 |
+| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 180 |
+| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 202 |
+| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 98 |
 
 전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
 
@@ -62,3 +62,23 @@
 빈손인 감사도 결과다. 세 번 훑어 아무것도 안 나왔다는 것과 훑지 않았다는 것은 다르다.
 
 그리고 이 감사에서 **제 실험 도구가 두 번 틀렸다.** 모듈 부재를 일반 `ImportError`로 흉내 냈는데 파이썬은 `ModuleNotFoundError`를 내고, 그 차이 때문에 없는 수집 에러를 결함으로 보고할 뻔했다. 또 "모든 코어 의존 테스트가 `importorskip`을 쓴다"는 검사를 넣었다가, `try/except`로 **완벽히 가드하는** 파일에서 실패했다 — 철자를 검사하고 있었다. 지금은 효과를 검사한다: 의존이 없을 때 스위트가 에러 대신 skip하는가.
+
+---
+
+## 통과하는 테스트가 무언가를 붙잡고 있는가
+
+1,211개가 통과한다는 것은 **테스트가 통과한다는 뜻**이지, 그것들이 무언가를 지키고 있다는 뜻이 아니다. 확인하는 방법은 하나뿐이다 — 코드를 일부러 망가뜨리고 빨간불이 켜지는지 본다.
+
+다섯 저장소의 안전장치 27개를 하나씩 무력화했다. 자기 승인 차단, 경로 봉쇄, `..` 거부, test split 봉인, 코퍼스 체크섬, 요청별 상태 격리, 외래키 강제, 전사본 신뢰도 필수 — **25개는 잡혔다.**
+
+**먼저 음성 대조를 걸었다.** 전부 "잡힘"으로 나오는 결과는 그 자체로는 아무것도 증명하지 않는다. 스위트가 무관한 이유로 실패해도 — 작업 디렉터리가 틀렸거나, 수집 에러가 났거나, 의존이 빠졌거나 — 출력은 똑같다. 그래서 같은 파일에 공백만 넣는 무해한 변경을 먼저 돌려 **안 잡히는 것을 확인했다.** 컨트롤이 하나라도 잡히면 그 회차의 결과는 전부 무효다. 이건 이 프로젝트가 이미 한 번 빠진 함정이다 — 시크릿 스캐너가 정규식 에러로 매번 빈 출력을 냈고 그게 "깨끗함"으로 읽혔다.
+
+잡히지 않은 둘은 **코드가 이미 맞았고 테스트가 붙잡고 있지 않았을 뿐**이다. 그래서 더 볼 만하다.
+
+**되감김 감시가 처음 울릴 때 스스로 무장 해제했다** ([agent-safety-core](https://github.com/ohsewool/agent-safety-core/blob/main/docs/REDTEAM-002-findings.md)) — high-water mark가 시계를 아래로도 따라가게 바꿔도 331개가 전부 통과했다. 겉보기와 달리 사소하지 않다. 되감긴 시계에서 **첫 번째** 리스는 여전히 거부된다 — 비교가 기록보다 먼저 일어나기 때문이다. 그래서 한 번만 확인하는 스위트에는 정상으로 보인다. 그때 거부당한 그 읽기가 이미 mark를 덮어썼고, 이후의 모든 리스는 낮아진 값과 비교되어 통과한다. **로그에는 "되감김 탐지"가 찍히고, 다음 리스는 그냥 나간다.**
+
+**상호 판독을 양쪽에서 고치고 한쪽만 확인했다** ([mcp-gateway](https://github.com/ohsewool/mcp-gateway/blob/main/tests/test_cross_repo_log_format.py)) — 두 저장소의 로그는 형식이 같아 검증기 하나로 읽는다고 적혀 있었고, 무결성 필드 이름만 달라 서로를 변조로 판정했다. 양쪽 리더가 두 이름을 모두 받도록 고쳤는데 **테스트는 agent-safety-core에만 있었다.** `event_hash`는 mcp-gateway 테스트 전체에 한 번도 나오지 않았고, 폴백을 지워도 192개가 통과했다.
+
+두 결함은 같은 모양이다. **한 번 고치고 한 번 확인한 것** — 두 지점에 적용된 수정을 한 지점에서만 검증했다.
+
+재현: [`tools/mutate.py`](tools/mutate.py). 변형을 적용하고, 스위트를 돌리고, 성공·실패·크래시 어느 쪽이든 원본을 되돌린다.
