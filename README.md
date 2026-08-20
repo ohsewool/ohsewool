@@ -5,7 +5,7 @@
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
 | [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 360 |
-| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 427 |
+| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 515 |
 | [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 198 |
 | [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 216 |
 | [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 120 |
@@ -151,3 +151,19 @@ ModelMate는 애플리케이션인데 CI가 pytest만 돌리고 있었다. READM
 **첫 판은 740건 중 161건이 없다고 보고했고, 그 숫자는 아무 뜻도 없었다.** 산문 속 파일명(`ledger.py`)까지 경로로 셌고, `tools/call`(JSON-RPC 메서드)과 `text/csv`(MIME 타입)가 슬래시가 있다는 이유로 경로로 집혔다. 규칙을 링크와 확장자 있는 백틱 경로로 좁히고 나서야 실제 18건이 드러났다. **검사기가 틀리면 결론도 틀린다** — 이번 회차에도 그게 첫 번째 결과였다.
 
 검사는 다섯 저장소 전부에 들어갔고, **자기 자신을 검사하는 테스트 6개**를 달고 있다: 문서를 보긴 했는지, 경로를 찾긴 했는지, 실패할 줄은 아는지, 기록 선언을 존중하는지, 산문 파일명을 경로로 오독하지 않는지, 있는 경로는 통과시키는지.
+
+---
+
+## 한 파일에서 원칙을 말하고 일곱 파일에서 어기고 있었다
+
+내부 경로를 끝냈으니 **외부 링크**. 여섯 저장소의 문서에서 URL 39개를 확인했다. **7개가 깨져 있었고 전부 같은 호스트였다** — 무료 플랜 만료로 내려간 Railway 인스턴스.
+
+ModelMate README는 그 배포가 내려갔다고 적고 주소를 지우면서 **"죽은 링크는 없는 링크보다 나쁘다"**고 썼다. 그런데 `docs/` 일곱 문서가 같은 주소를 그대로 들고 있었다.
+
+가장 나쁜 건 `docs/prediction-api.md`였다. **예측 API 사용법을 가르치면서 존재하지 않는 호스트로 `curl` 예시를 준다** — 따라 한 사람은 아무것도 못 얻는다.
+
+대부분은 `--base-url <주소>` 형태의 QA 명령이었고, 로컬 주소로 바꾸니 **지금 실제로 동작한다.** 과거 QA 실행 보고서와 에이전트 작업 로그 둘은 그때 그 주소를 적은 것이 정확한 서술이라 기록으로 선언했다.
+
+**검사는 네트워크를 쓰지 않는다.** "이 주소가 지금 살아 있는가"는 오프라인에서 답할 수 없지만 "우리가 죽었다고 아는 주소를 살아 있는 것처럼 적고 있는가"는 답할 수 있다. 인터넷이 끊긴 CI에서 조용히 통과하는 검사는 검사가 아니다.
+
+나머지 32개 — GitHub, arXiv, Hugging Face, sbert.net — 는 전부 정상이다. **훑어서 안 나온 것과 안 훑은 것은 다르다.**
