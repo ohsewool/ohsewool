@@ -8,7 +8,7 @@
 | [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 434 |
 | [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 187 |
 | [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 209 |
-| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 113 |
+| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 124 |
 
 전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
 
@@ -176,4 +176,8 @@ ModelMate README는 그 배포가 내려갔다고 적고 주소를 지우면서 
 
 한 성질에 테스트 하나로 합치고, 어느 문서가 걸렸는지는 실패 메시지가 말하게 했다. 합친 뒤에도 잡는지 확인했다 — 깨진 링크를 심으니 `README.md → docs/nope.md`, 죽은 주소를 심으니 `docs/prediction-api.md → web-production-5d6fa…`라고 정확히 짚는다.
 
-**총 1,295개.** 늘리는 것보다 줄이는 게 맞는 회차도 있다.
+**총 1,306개.** 늘리는 것보다 줄이는 게 맞는 회차도 있다.
+
+**그리고 그 새 테스트가 CI에서 조용히 skip되고 있었다.** 샘플 PDF는 2.2MB라 저장소에 넣지 않고 필요할 때 내려받는데, 그 내려받기가 `test_pdfplumber_adapter.py` 안에만 있었다. pytest는 파일을 알파벳 순으로 돌고 `test_cross_parser_agreement`가 앞이라, CI에서는 파일이 아직 없어 **10개가 통째로 skip됐다.** 로컬에는 이미 받아둔 파일이 있어 전부 통과했고, 그래서 로컬만 보면 알 수 없었다. 한 모듈이 남긴 부수효과에 다른 모듈이 기대고 있었다 — `conftest.py`로 옮겼고, 캐시를 지우고 그 모듈만 돌려 확인했다.
+
+**같은 저장소의 CI가 `requirements.txt`를 쓰지 않고 있었다는 것도 그때 드러났다.** `pip install pytest pdfplumber`라고 손으로 적혀 있어서, 그 파일에 무엇이 적히든 CI는 상관하지 않았다. **README가 안내하는 설치 경로가 어디서도 돌아본 적이 없었다.** 형제 저장소 넷은 전부 `requirements.txt`를 쓴다 — 이 하나만 달랐다.
