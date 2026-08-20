@@ -5,7 +5,7 @@
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
 | [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 345 |
-| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 410 |
+| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 427 |
 | [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 180 |
 | [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 202 |
 | [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 106 |
@@ -115,3 +115,21 @@ CI는 이 문제에 노출되지 않는다 — 형제를 새로 체크아웃해 
 같은 이유로 `document-intelligence`의 어댑터를 `document_intelligence.adapters.pdfplumber`로 옮겼다. `adapters`는 `agent-safety-core`도 내보내는 이름이라, 둘 다 설치하면 문서에 적힌 import가 `ModuleNotFoundError`가 됐다.
 
 **이 회차에 내 검사 도구가 세 번 틀렸다.** 최상위 패키지를 훑는 스크립트가 정규 패키지 둘을 namespace로 잘못 보고했고(그래서 잠시 내가 만든 결함으로 오해했다), 대조군 빌드가 두 번 캐시를 재사용해 무효였다. 셋 다 결함 옆에 같이 적어둔다 — 검사기가 틀리면 결론도 틀린다.
+
+---
+
+## 저장소에 있는데 아무도 돌려본 적 없는 것
+
+ModelMate는 애플리케이션인데 CI가 pytest만 돌리고 있었다. README가 안내하는 `uvicorn backend.main:app`과 스모크 스크립트는 **한 대의 기계에서 손으로만** 돌아간 적이 있다. `backend/main.py`는 `main_parts/*.part`를 import 시점에 조립하므로, 조립이 깨지면 모듈을 직접 import하는 테스트는 전부 통과한 채 앱만 안 뜬다. **스위트가 통과한다는 것과 앱이 뜬다는 것은 다른 주장이다.**
+
+띄워봤더니 6.7초에 103개 라우트, OpenAPI 91경로, 제품 스모크 16/16. 그래서 CI에 넣었다 — **스모크가 실패할 줄 아는지 먼저 확인한 뒤에** 신뢰한다. 아무것도 듣고 있지 않은 포트를 향해 한 번 돌려 실패하는 것을 보고, 그 다음에 진짜 서버를 친다.
+
+이어서 저장소의 스크립트 28개를 전부 돌렸다. **25개가 통과했고, 세 개에서 뭔가 나왔다.**
+
+**`can_rerun`이 거짓말하고 있었다** — API가 실패한 작업에 `can_rerun: true`를 내놓고, 실제로 재실행하면 409로 거부했다. 화면에 버튼이 보이고, 누르면 에러가 난다. 원인은 익숙한 모양이다: `can_rerun`은 상태만 보고, 엔드포인트는 데이터셋 참조까지 요구했다 — **한 질문에 규칙이 둘, 맞춰보는 곳은 없음.** 이제 함수 하나가 답하고 양쪽이 그걸 읽는다. 거부 사유도 플래그와 함께 다닌다 — "다시 실행할 수 없습니다"는 "왜"가 붙어야 행동으로 옮길 수 있고, 그 why가 클릭한 뒤에야 나오는 409 안에만 있었다.
+
+**"빌드가 깨짐"과 "npm install을 안 함"이 같은 fail이었다** — 단서는 `MODULE_NOT_FOUND` 스택 트레이스뿐. 정반대의 대응이 필요한 둘이고, 구분 못 하는 릴리스 관문은 새 체크아웃에서 절대 초록불이 안 되면서 **진짜 빌드 실패가 준비 부족과 똑같이 보인다.** 양쪽 다 확인했다 — 깨진 빌드는 여전히 fail, 의존성 없음은 조치 명령과 함께 skipped.
+
+**QA 스크립트가 매번 저장소를 키우고 있었다** — 모델 파일과 DB는 지우고 업로드한 CSV는 안 지웠다. 그렇게 생긴 파일 셋이 커밋돼 픽스처처럼 앉아 있었다. 아무것도 참조하지 않는다. 이제 지우고, CI가 `git status`로 확인한다.
+
+세 번째와 네 번째는 **내 측정이 틀린 것**이었다. 파이프 뒤의 `$?`를 스크립트 종료 코드로 읽어 멀쩡한 스모크를 결함으로 볼 뻔했고, 실행기가 인자를 받지 않는 스크립트에 `--base-url`을 넘겨 그 실패를 스크립트 탓으로 돌렸다. 둘 다 다시 재서 잡았다.
