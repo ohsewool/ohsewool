@@ -4,11 +4,11 @@
 
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
-| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 345 |
+| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 360 |
 | [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 427 |
-| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 180 |
-| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 202 |
-| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 106 |
+| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 198 |
+| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 216 |
+| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 120 |
 
 전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
 
@@ -133,3 +133,21 @@ ModelMate는 애플리케이션인데 CI가 pytest만 돌리고 있었다. READM
 **QA 스크립트가 매번 저장소를 키우고 있었다** — 모델 파일과 DB는 지우고 업로드한 CSV는 안 지웠다. 그렇게 생긴 파일 셋이 커밋돼 픽스처처럼 앉아 있었다. 아무것도 참조하지 않는다. 이제 지우고, CI가 `git status`로 확인한다.
 
 세 번째와 네 번째는 **내 측정이 틀린 것**이었다. 파이프 뒤의 `$?`를 스크립트 종료 코드로 읽어 멀쩡한 스모크를 결함으로 볼 뻔했고, 실행기가 인자를 받지 않는 스크립트에 `--base-url`을 넘겨 그 실패를 스크립트 탓으로 돌렸다. 둘 다 다시 재서 잡았다.
+
+---
+
+## 문서가 없는 파일을 가리키고 있었다
+
+"아무도 돌려본 적 없는 것"을 나머지 저장소로 들고 갔다. 진입점부터 — `benchmark/run.py`, `experiments/kr_law_retrieval.py`, `core.export verify`, `mcp_gateway.audit verify` — 전부 돌았고, 두 검증 CLI는 정상 로그와 변조 로그를 제대로 갈랐다(각각 종료 0과 1). **빈손이고, 그게 결과다.**
+
+그래서 다음 질문으로 갔다. **문서가 파일 이름을 대는 것도 검증 가능한 주장이다.**
+
+`backend/main_parts/*.py`는 `09a1116`(2026-06-11)에 `*.part`가 됐다. 그걸 가리키는 참조 18개가 문서 네 곳에 두 달 넘게 남아 있었다. **아무도 클릭해보지 않았기 때문에 아무도 몰랐다.**
+
+그 문서 넷은 지난 발표와 인수인계의 기록이고, 쓰일 당시엔 경로가 맞았다. 조용히 고치면 **낡은 문서가 관리되는 것처럼 보인다.** 그래서 각자 `<!-- historical: 언제 -->`로 스스로 기록임을 선언하고, 그 뒤 무엇이 달라졌는지 적는다. 검사는 선언된 기록을 건너뛴다. **낡았다는 것이 선언이면 기록이고, 선언이 아니면 사고다.**
+
+`SECURITY.md`는 두 읽기가 다 필요했다. 한 경로는 `backend/`가 빠진 축약이었고, 다른 하나는 **과거 커밋 시점의 이름이라 옳았다** — 키가 유출된 건 이름이 `.py`이던 시절이다. 링크처럼 보이지 않고 역사처럼 읽히게 고쳤다.
+
+**첫 판은 740건 중 161건이 없다고 보고했고, 그 숫자는 아무 뜻도 없었다.** 산문 속 파일명(`ledger.py`)까지 경로로 셌고, `tools/call`(JSON-RPC 메서드)과 `text/csv`(MIME 타입)가 슬래시가 있다는 이유로 경로로 집혔다. 규칙을 링크와 확장자 있는 백틱 경로로 좁히고 나서야 실제 18건이 드러났다. **검사기가 틀리면 결론도 틀린다** — 이번 회차에도 그게 첫 번째 결과였다.
+
+검사는 다섯 저장소 전부에 들어갔고, **자기 자신을 검사하는 테스트 6개**를 달고 있다: 문서를 보긴 했는지, 경로를 찾긴 했는지, 실패할 줄은 아는지, 기록 선언을 존중하는지, 산문 파일명을 경로로 오독하지 않는지, 있는 경로는 통과시키는지.
