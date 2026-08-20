@@ -4,11 +4,11 @@
 
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
-| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 360 |
-| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 515 |
-| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 198 |
-| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 216 |
-| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 120 |
+| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 352 |
+| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 434 |
+| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 187 |
+| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 209 |
+| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 113 |
 
 전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
 
@@ -167,3 +167,13 @@ ModelMate README는 그 배포가 내려갔다고 적고 주소를 지우면서 
 **검사는 네트워크를 쓰지 않는다.** "이 주소가 지금 살아 있는가"는 오프라인에서 답할 수 없지만 "우리가 죽었다고 아는 주소를 살아 있는 것처럼 적고 있는가"는 답할 수 있다. 인터넷이 끊긴 CI에서 조용히 통과하는 검사는 검사가 아니다.
 
 나머지 32개 — GitHub, arXiv, Hugging Face, sbert.net — 는 전부 정상이다. **훑어서 안 나온 것과 안 훑은 것은 다르다.**
+
+### 그리고 그 다음 회차에 내가 그 숫자를 부풀렸다
+
+문서 검사를 **문서마다** 파라미터로 걸었다. 어느 문서가 걸렸는지 pytest가 이름으로 알려주니까. 그랬더니 다섯 저장소에서 **119개가 늘었다** — 검사하는 성질은 5개인데. ModelMate는 한 파일이 88개를 만들어 427에서 515로 뛰었다.
+
+이 저장소들은 README가 주장하는 테스트 수를 CI가 실제 수집 개수와 대조한다. 숫자가 두 번 어긋난 뒤에 만든 장치다. **그 숫자가 뜻을 가지려면 내가 먼저 부풀리지 말아야 한다.**
+
+한 성질에 테스트 하나로 합치고, 어느 문서가 걸렸는지는 실패 메시지가 말하게 했다. 합친 뒤에도 잡는지 확인했다 — 깨진 링크를 심으니 `README.md → docs/nope.md`, 죽은 주소를 심으니 `docs/prediction-api.md → web-production-5d6fa…`라고 정확히 짚는다.
+
+**총 1,295개.** 늘리는 것보다 줄이는 게 맞는 회차도 있다.
