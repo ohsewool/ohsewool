@@ -6,7 +6,7 @@
 |---|---|---|
 | [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 392 |
 | [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 493 |
-| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 241 |
+| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 243 |
 | [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 239 |
 | [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 153 |
 
@@ -421,3 +421,27 @@ if ".." in PurePosixPath(str(resolved)).parts:
 | `docs/RESULTS.md` | 사실로 정정 + 진짜 결과 가리키기 | 이름이 "결과"다. 배너만 달면, 결과를 찾아 온 사람이 여전히 오도된다 |
 
 `tests/test_no_stale_status.py`가 재발을 막는다 — 살아 있는 문서에 그 문장이 있으면 실패하고, 선언된 기록은 넘어간다. **문구를 도로 넣어 잡히는 것을 확인했다.**
+
+---
+
+## 사양이 만들어지지 않은 프로젝트를 서술하고 있었다
+
+지난 회차에 `docs/STATUS.md`와 `RESULTS.md`가 "아무것도 안 했다"고 말하는 것을 고쳤다. **뿌리는 착수 템플릿 문서 전체**였으므로 나머지를 마저 봤다.
+
+세 저장소에 **미완 체크박스 77개**가 남아 있었다. 내용은 "코드가 없음을 확인하라", "동작을 구현하지 말라". 그리고 `rag-profile-selector`에서 더 큰 것이 나왔다.
+
+`docs/PROJECT_SPEC.md`:
+
+> **The MVP uses HotpotQA only.**
+
+**HotpotQA는 한 번도 내려받은 적이 없다** — 받는 스크립트조차 없다. 만들어진 것은 한국어 법령 745조문 위의 실험이다. 여섯 문서에 22번 나왔다.
+
+문서보다 나쁜 것은 따로 있었다. **`AGENTS.md`** — 다음 작업이 무엇을 해도 되는지 정하는 파일 — 이 여전히 "MVP는 HotpotQA만 쓴다"고 지시하고 있었다. **다음 변경을 이 프로젝트가 쓰지 않는 코퍼스로 되돌릴 문장이다.**
+
+**형제 저장소는 이걸 할 줄 안다.** `mcp-gateway`의 SPEC은 첫 문단에서 자기 범위 변경을 정확히 기록했다 — *"원래 범위는 테스트베드를 합성 MCP 서버로 제한했다. 다음에 한해, 그리고 다음에만 그 제한을 해제한다."* **여기서만 하지 않았다.**
+
+`DECISIONS.md`에 D-002 정정을 넣었다. **당시 이유는 적혀 있지 않아서 지어내지 않았다.** 지금 확인 가능한 것만 적었다 — 실제 코퍼스가 공공누리 제1유형이라 체크섬·재현 절차를 공개할 수 있다는 것, 합성 실험이 먼저였다는 것, HotpotQA를 받지 않았다는 것.
+
+**결정을 바꾼 것이 문제가 아니라 바꾼 것을 적지 않은 것이 문제다.** 이 저장소들의 원칙이 "뒤집은 판단은 근거와 함께 남긴다"인데, 정작 **이 프로젝트가 무엇인지를 정하는 결정**이 빠져 있었다.
+
+계획 문서는 고치지 않고 기록으로 선언했다. **체크박스 77개를 지금 채우면 계획을 그대로 따른 것처럼 보이고, 어디서 갈라졌는지가 사라진다.** `DECISIONS.md`만 검사에서 제외했다 — **폐기된 결정을 보관하는 것이 그 문서의 본분**이다.
