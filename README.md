@@ -6,9 +6,9 @@
 |---|---|---|
 | [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 392 |
 | [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 493 |
-| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 235 |
-| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 233 |
-| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 147 |
+| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 241 |
+| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 239 |
+| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 153 |
 
 전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
 
@@ -396,3 +396,28 @@ if ".." in PurePosixPath(str(resolved)).parts:
 **같은 주장이 두 곳에 살면 한 곳만 고쳐진다.** 이 저장소들이 반복해서 찾아온 모양이고, 이번엔 내가 만들었다.
 
 나머지는 시험돼 있었다 — 게이트웨이의 중복 키 거부(3건)와 끝부분 절단 탐지(2건), ModelMate의 "LLM이 결정론적 거부를 뒤집을 수 없다"(2건, 조기 반환으로 구현). **훑어서 안 나온 것과 안 훑은 것은 다르다.**
+
+---
+
+## `docs/`는 아무것도 안 했다고 말하고 있었다
+
+지난 회차 결함은 **"같은 주장이 두 곳에 살면 한 곳만 고쳐진다"**였고, 그걸 만든 게 나였다. 그 형태를 기계적으로 찾아봤다 — 여섯 저장소의 문장을 근접 중복으로 짝지어 보고(구두점 차이뿐), 이름 붙은 수치 513종이 문서마다 갈리는지 봤다(전부 오탐: `hybrid-rrf-k4`와 `k8`은 서로 다른 프로파일이지 같은 값의 충돌이 아니다).
+
+**두 검사 모두 빈손이었는데, 그 과정에서 결과 문서가 셋이라는 게 눈에 띄었다.**
+
+`rag-profile-selector/docs/RESULTS.md`:
+
+> **내려받은 데이터셋도 모델도 없고, 검색·학습·평가를 실행한 적이 없으며, 경험적 결과가 없다.**
+
+그 저장소에는 법령 745조문, 프로파일 5개 비교, 봉인 해제한 test split, dense 모델 2종 비교, 311줄짜리 결과 문서가 있다. `docs/STATUS.md`는 한술 더 떠 **"다음 승인된 작업: `docs/TASKS.md`의 A1 — 저장소를 조사하고 목록화하라"**고 적혀 있었다.
+
+**낡은 것을 넘어 모순이다.** README는 결과를 앞세우고 `docs/`는 결과가 없다고 하는데, **`docs/`가 바로 읽는 사람이 결과를 찾으러 가는 자리다.**
+
+착수 시점 템플릿에서 나온 문서라 **세 저장소 전부** 같은 문장을 들고 있었다.
+
+| 문서 | 처리 | 이유 |
+|---|---|---|
+| `docs/STATUS.md` | 기록으로 선언 | 착수 때 **무엇을 의도적으로 미뤘는지**는 지울 이유가 없다. 조용히 고치면 그 판단이 사라진다 |
+| `docs/RESULTS.md` | 사실로 정정 + 진짜 결과 가리키기 | 이름이 "결과"다. 배너만 달면, 결과를 찾아 온 사람이 여전히 오도된다 |
+
+`tests/test_no_stale_status.py`가 재발을 막는다 — 살아 있는 문서에 그 문장이 있으면 실패하고, 선언된 기록은 넘어간다. **문구를 도로 넣어 잡히는 것을 확인했다.**
