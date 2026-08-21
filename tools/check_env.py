@@ -66,6 +66,7 @@ def resolve(module: str) -> Path | None:
 
 def main() -> int:
     failures = 0
+    unresolved = 0
     for module, repo in MODULES.items():
         expected = ROOT / repo
         found = resolve(module)
@@ -73,6 +74,16 @@ def main() -> int:
             # Not installed is a legitimate state - the repositories are usable
             # from a checkout - and must not be reported as pointing somewhere
             # wrong.
+            #
+            # **But it is also the state in which this script checks nothing.**
+            # Run in a fresh CI job with nothing installed, every module lands
+            # here and the exit code is zero: a green tick that establishes
+            # nothing. Found 2026-08-22 while wiring this into CI - the editable
+            # installs had failed and the check passed anyway.
+            #
+            # `--require-importable` is for that setting. Locally the default
+            # stays as it was.
+            unresolved += 1
             print(f"  · {module:<24} not importable outside a checkout (fine if uninstalled)")
             continue
         try:
@@ -88,6 +99,10 @@ def main() -> int:
         print(f"\n{failures} module(s) resolve outside their checkout. Any test run "
               f"here is testing something else.\n"
               f"fix:  pip install -e <repo> --no-deps --no-build-isolation")
+        return 1
+    if arguments.require_importable and unresolved:
+        print(f"\nFAILED — {unresolved}개 모듈이 import되지 않는다. 설치되지 않은 상태에서는 "
+              f"이 검사가 아무것도 확인하지 않는다.")
         return 1
     print("\nevery module resolves inside its own checkout")
     return 0

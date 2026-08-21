@@ -22,11 +22,19 @@ worth reading has to separate what needs attention from what does not.
 
 from __future__ import annotations
 
+import argparse
 import ast
 import sys
 from pathlib import Path
 
-ROOT = Path("/home/jovyan/work")
+# 한 기계의 절대 경로(`/home/jovyan/work`)가 박혀 있었다. 다른 세 도구는 전부
+# `__file__`에서 유도하는데 이것만 그랬고, 그래서 **다른 어디에서도 돌지 않았다** —
+# CI에 넣지 못한 이유이기도 하다.
+#
+# 이 프로젝트가 이미 한 번 찾은 결함이다: `mcp-gateway`의 테스트 셋이
+# `/home/jovyan/work/agent-safety-core`가 있는지로 형제 가용성을 판단하고 있었다.
+# 같은 모양이 이 저장소의 검사 도구 안에 남아 있었다.
+DEFAULT_ROOT = Path(__file__).resolve().parents[2]
 REPOS = ("agent-safety-core", "mcp-gateway", "modelmate",
          "rag-profile-selector", "document-intelligence")
 
@@ -95,19 +103,26 @@ def _name(node: ast.AST) -> str:
     return ""
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT,
+                        help="다섯 저장소가 나란히 있는 디렉터리")
+    arguments = parser.parse_args(argv)
+    root = arguments.root
+
     by_kind: dict[str, list] = {}
     scanned = 0
     for repo in REPOS:
-        for path in sorted((ROOT / repo / "tests").rglob("test_*.py")):
+        for path in sorted((root / repo / "tests").rglob("test_*.py")):
             scanned += 1
-            visitor = Visitor(path.relative_to(ROOT))
+            visitor = Visitor(path.relative_to(root))
             visitor.visit(ast.parse(path.read_text(encoding="utf-8")))
             for finding in visitor.findings:
                 by_kind.setdefault(finding[3], []).append(finding)
 
     if not scanned:
-        print("FAILED — no test files found; this scan looked at nothing")
+        print(f"FAILED — {root} 아래에서 테스트 파일을 하나도 찾지 못했다. "
+              f"이 훑기는 아무것도 보지 않았다.")
         return 1
     print(f"{scanned} test files scanned\n")
 
@@ -125,6 +140,19 @@ def main() -> int:
     unreported = sorted(set(by_kind) - set(order))
     if unreported:
         print(f"FAILED — 분류했지만 보고하지 않은 종류: {', '.join(unreported)}")
+        return 1
+
+    # **실패 조건은 하나뿐이다.** 부르지도 단언하지도 않는 테스트는 어떤 읽기로도
+    # 실패할 수 없으니 그것만 막는다. 나머지 둘은 읽을 목록이다 —
+    # `expects_no_raise`는 정당한 패턴이고, 루프 안 단언은 빈 컬렉션이면 공허해지지만
+    # 그 판단은 컬렉션이 비는지 알아야 할 수 있어 이 도구가 답할 수 없다.
+    #
+    # 관문으로 삼을 수 있는 것만 관문으로 삼는다. 나머지까지 실패로 만들면 사람들이
+    # 이 검사를 끄고, 끈 검사는 없는 검사다.
+    vacuous = by_kind.get("no_assertion", [])
+    if vacuous:
+        print(f"FAILED — 부르지도 단언하지도 않는 테스트 {len(vacuous)}개. "
+              f"어떤 읽기로도 실패할 수 없다.")
         return 1
     return 0
 

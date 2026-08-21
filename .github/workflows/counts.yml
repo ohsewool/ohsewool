@@ -28,3 +28,75 @@ jobs:
         # 소문자로 바꾼 뒤 앵커를 만드는데 생성기가 그러지 않았다. 링크는 멀쩡해
         # 보이고 눌러본 사람만 안다. 손으로 확인할 것이 아니다.
         run: python3 tools/check_anchors.py
+
+  # 다섯 도구 중 둘만 CI에 있었고 셋은 손으로 돌리는 것이었다. 그 셋은 여러 회차
+  # 동안 아무도 돌리지 않았고, 그동안 `mutate.py`는 문법 오류를 "잡힘"으로 읽고
+  # 있었으며 `find_vacuous_tests.py`는 한 기계의 절대 경로를 들고 있어 다른 어디에서도
+  # 돌지 않았다. **손으로 돌리는 검사는 돌리지 않으면 없는 검사다.**
+  #
+  # 빠른 둘을 여기로 옮긴다. `mutate.py`는 한 시간 반이 걸려 여기 못 들어오고,
+  # 대신 마지막으로 돌린 날짜가 낡으면 알리는 검사를 뒀다.
+  siblings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: work/ohsewool
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/agent-safety-core, path: work/agent-safety-core }
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/mcp-gateway, path: work/mcp-gateway }
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/modelmate, path: work/modelmate }
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/rag-profile-selector, path: work/rag-profile-selector }
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/document-intelligence, path: work/document-intelligence }
+
+      - name: Refuse a test that cannot fail
+        # 실패 조건은 하나뿐이다: 부르지도 단언하지도 않는 테스트. 나머지 두 범주는
+        # 읽을 목록이고, 관문으로 삼으면 사람들이 이 검사를 끈다.
+        working-directory: work/ohsewool
+        run: python3 tools/find_vacuous_tests.py
+
+      - name: Refuse a scan that looked at nothing
+        # 위 검사는 파일을 하나도 못 찾아도 "공허한 테스트 0개"를 낼 수 있다 -
+        # 그것이 이 프로젝트가 시크릿 스캐너에서 이미 당한 실패다. 없는 경로로
+        # 불러서 **실패하는 것**을 먼저 확인한다.
+        working-directory: work/ohsewool
+        run: |
+          if python3 tools/find_vacuous_tests.py --root /tmp/nowhere > /dev/null 2>&1; then
+            echo "::error::훑을 것이 없는데도 통과했다. 이 검사는 아무것도 확인하지 않는다."
+            exit 1
+          fi
+          echo "빈 루트에서는 실패한다 — 검사가 살아 있다"
+
+      - name: Install the four libraries from their checkouts
+        # 의존성 없이 설치한다. 여기서 확인하려는 것은 "`import x`가 어느 체크아웃에
+        # 닿는가"이지 그 패키지가 동작하는가가 아니다 - 후자는 각 저장소의 CI가 본다.
+        run: |
+          python3 -m pip install -q --upgrade pip setuptools wheel
+          for repo in agent-safety-core mcp-gateway rag-profile-selector document-intelligence; do
+            python3 -m pip install -q -e "work/$repo" --no-deps --no-build-isolation
+          done
+
+      - name: Refuse an import that reaches the wrong checkout
+        # 이 저장소들이 이미 당한 일이다: mcp-gateway가 나흘 묵은 형제를 상대로
+        # 테스트하고 있었고 아무도 몰랐다.
+        #
+        # `--require-importable`이 없으면 **아무것도 설치되지 않은 CI에서 그냥
+        # 통과한다** - 모든 모듈이 "import 안 됨(설치 안 됐으면 정상)"으로 빠지고
+        # 종료 코드가 0이 된다. 넣기 전에 확인했고, 실제로 그랬다.
+        working-directory: work/ohsewool
+        run: python3 tools/check_env.py --require-importable
+
+      - name: Refuse a mutation audit that has gone stale
+        # `mutate.py`는 한 시간 반이 걸려 매 push에 돌릴 수 없다. 그렇다고 "언젠가
+        # 손으로"는 여러 회차 동안 아무도 안 돌리는 상태를 만든다. 마지막으로 돌린
+        # 날짜를 FINDINGS.md에 적고, 그 날짜가 낡으면 여기서 말한다.
+        working-directory: work/ohsewool
+        run: python3 tools/check_mutation_freshness.py
