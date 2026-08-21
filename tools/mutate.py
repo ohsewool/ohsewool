@@ -40,6 +40,7 @@ tests when it is gone.
 from __future__ import annotations
 
 import argparse
+from enum import Enum
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -172,19 +173,52 @@ CONTROLS = (
 )
 
 
-def run(probe: Probe) -> bool | None:
-    """Apply, run, restore. Returns whether the suite went red, or None if the
-    pattern is gone - which is itself worth reporting, since a probe pointing at
-    code that no longer exists silently tests nothing."""
+class Outcome(str, Enum):
+    """What a probe actually established.
+
+    `CAUGHT` and `BROKEN` used to be the same value, and that was the hole. A
+    replacement that produces invalid Python makes every test in the repository
+    error, the suite exits non-zero, and the old code read that as "the safety
+    check was removed and the suite noticed". It had noticed nothing of the sort.
+
+    Demonstrated 2026-08-22: deleting one colon from a function signature in
+    `document-intelligence` reported `caught`. The safety check it claimed to
+    exercise was never reached.
+
+    The negative controls do not cover this. They edit whitespace elsewhere and
+    catch conditions that affect the whole run - wrong directory, missing
+    dependency, collection error. A syntax error introduced by *one* probe is
+    invisible to them, because the control probe's own file still parses.
+    """
+
+    CAUGHT = "caught"
+    NOT_CAUGHT = "not caught"
+    MISSING = "pattern not found"
+    BROKEN = "replacement does not parse"
+
+
+def run(probe: Probe) -> Outcome:
+    """Apply, run, restore.
+
+    The mutated file is compiled before the suite runs. If it does not parse,
+    the probe is reported as broken rather than as caught - it tested nothing,
+    and saying so is the whole point of this tool.
+    """
     path = ROOT / probe.repo / probe.path
     original = path.read_text(encoding="utf-8")
     if probe.old not in original:
-        return None
+        return Outcome.MISSING
+    mutated = original.replace(probe.old, probe.new, 1)
+    if path.suffix == ".py":
+        try:
+            compile(mutated, str(path), "exec")
+        except SyntaxError:
+            return Outcome.BROKEN
     try:
-        path.write_text(original.replace(probe.old, probe.new, 1), encoding="utf-8")
+        path.write_text(mutated, encoding="utf-8")
         result = subprocess.run(PYTEST, cwd=ROOT / probe.repo,
                                 capture_output=True, text=True, timeout=1800)
-        return result.returncode != 0
+        return Outcome.CAUGHT if result.returncode != 0 else Outcome.NOT_CAUGHT
     finally:
         path.write_text(original, encoding="utf-8")
 
@@ -196,11 +230,16 @@ def report(probes: tuple[Probe, ...]) -> int:
         if probe.repo != repo:
             repo = probe.repo
             print(f"\n{repo}")
-        caught = run(probe)
-        if caught is None:
+        outcome = run(probe)
+        if outcome is Outcome.MISSING:
             mark, bad = "?  pattern not found", True
-        elif caught == probe.expect_caught:
-            mark, bad = ("caught" if caught else "not caught (as intended)"), False
+        elif outcome is Outcome.BROKEN:
+            # 문법이 깨진 치환은 스위트를 빨갛게 만들지만 안전장치를 건드리지도
+            # 못한다. 예전에는 이것이 `caught`와 같은 값이었다.
+            mark, bad = "!  replacement does not parse — this probe tested nothing", True
+        elif (outcome is Outcome.CAUGHT) == probe.expect_caught:
+            mark = "caught" if outcome is Outcome.CAUGHT else "not caught (as intended)"
+            bad = False
         else:
             mark = "NOT CAUGHT" if probe.expect_caught else "CAUGHT — control failed, run is void"
             bad = True
