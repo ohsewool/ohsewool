@@ -4,11 +4,11 @@
 
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
-| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 359 |
+| [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 385 |
 | [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 446 |
 | [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 215 |
 | [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 209 |
-| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 124 |
+| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 147 |
 
 전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
 
@@ -288,3 +288,31 @@ ModelMate README는 그 배포가 내려갔다고 적고 주소를 지우면서 
 **현재 split은 다시 나누지 않는다.** `--write`는 `splits.json`이 있으면 거부하고 1을 낸다. 봉인을 실수로 깨는 경로가 없어야 한다.
 
 여기서도 하나 걸렸다. 새 테스트 셋이 **잘못된 이유로 통과**하고 있었다 — 코퍼스 본문이 없으면 `main()`이 "질의가 없다"로 1을 내는데, 봉인 검사가 그걸 "덮어쓰기를 거부했다"로 읽었다. **같은 종료 코드가 두 가지를 뜻하면 단언은 아무것도 고정하지 않는다.** 모듈 전체를 같은 조건으로 묶고, 주간 워크플로가 두 파일을 함께 돌리게 했다 — **어디서도 안 도는 테스트는 없는 테스트다.** 수동으로 돌려 43개 전부 실행, skip 0을 확인했다.
+
+---
+
+## 있다고 적혀 있는데 없던 검사
+
+skip 감사를 끝까지 밀었다. 다섯 저장소 전부 로컬 skip 0, CI에서는 `rag`의 25건뿐이고 그건 주간 워크플로가 실제로 돌린다(수동 실행해 43개 전부 실행·skip 0 확인). **skip으로 세어지지 않는 조용한 건너뜀** — 테스트 본문의 이른 `return` — 도 훑었고 0건이다(검출기가 실제로 잡는지 네 가지 경우로 확인한 뒤에).
+
+두 감사 연속 빈손이라 각도를 바꿨다. **어떤 코드가 테스트에서 한 번도 실행되지 않는가.**
+
+`document-intelligence`의 `reading_order.py`는 85%가 실행되고 있었고, **실행되지 않는 15%는 전부 거부 분기**였다. 잘못된 입력을 막는 `raise`가 열넷인데 하나도 발동한 적이 없었다. 전부 쏴봤고 열넷 다 동작했다 — 결함은 없었지만, **거부가 시험된 적이 없으면 그건 코드에 적힌 문장이지 성질이 아니다.** 조건 하나가 뒤집혀도 정상 입력만으로는 아무 차이가 없다.
+
+같은 방법을 안전 코어에 적용했더니 **하나가 통과했다.**
+
+```python
+resolved = candidate.resolve()
+if ".." in PurePosixPath(str(resolved)).parts:
+    raise ScopeError("path escapes through traversal components")
+```
+
+`.resolve()`가 `..`를 **이미 접어 없앤 뒤에** `..`를 찾는다. `/tmp/../etc/passwd`는 `/etc/passwd`가 되고 `parts`에 `..`가 남지 않는다. **어떤 입력으로도 발동할 수 없는 검사**였고, 메시지는 traversal을 거부한다고 말하고 있었다.
+
+실질적 영향은 좁다 — 해석된 경로가 실제 inode에 고정되므로 결속은 정직했다. 그러나 **활성 검사처럼 보이는 죽은 코드는 없는 검사보다 나쁘다.** 없으면 사람이 조심하고, 있으면 보호받고 있다고 믿는다.
+
+그리고 이건 **같은 규칙을 두 곳에 다르게 구현한 것**이었다. `mcp-gateway`의 정책은 처음부터 원시 요청에서 `..`를 거부하고 그 이유까지 주석에 적혀 있다("해석하면 서버가 나중에 하는 것과 어긋난다"). 한쪽만 동작했다.
+
+도달 불가한 줄은 지우지 않고 **`pragma: no cover`와 이유를 달았다**. `reading_order.py`의 시작점 개수·순환 검사는 구역 4개까지 전수 탐색으로 앞선 검사가 모두 선점함을 확인했다. 중복 페이지 키 검사는 `dict`으로는 못 만들지만 서명이 `Mapping`을 받으므로 **도달 가능**해서 테스트를 넣었다 — 셋을 뭉뚱그렸으면 하나는 영영 안 도는 검사로 남았을 것이다.
+
+**이 결함은 코드를 읽어서가 아니라 커버리지가 "그 줄이 한 번도 실행되지 않았다"고 알려줘서 나왔다.** 미실행 거부 분기는 목록으로 만들어 하나씩 쏴볼 가치가 있다.
