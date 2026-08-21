@@ -38,9 +38,29 @@ ROW_IN_TABLE = re.compile(r"\|\s*\[\*\*(?P<repo>[\w-]+)\*\*\][^|]*\|[^|]*\|\s*(?
 
 
 def sibling_readme(repo: str, local: Path | None) -> str:
+    """Read a sibling's README, from disk or from GitHub.
+
+    `raw.githubusercontent.com` is a CDN and it caches. On 2026-08-22 it served
+    the previous README for two repositories several minutes after the push had
+    landed - `git log origin/main` showed the new commits and raw did not. This
+    script then reported that two READMEs disagreed with this one, which was
+    false: they agreed, and the copy being read was stale.
+
+    That is the failure mode this whole project keeps finding in its own checks.
+    An alarm nobody can trust costs the same attention as an all-clear nobody
+    can trust, and here it would have pointed at the wrong file - I nearly went
+    to fix READMEs that were already correct.
+
+    So the request asks for a fresh copy. It is not a guarantee - a CDN may
+    ignore it - but the alternative was not asking at all.
+    """
     if local is not None:
         return (local / repo / "README.md").read_text(encoding="utf-8")
-    with urllib.request.urlopen(RAW.format(repo=repo), timeout=30) as response:
+    request = urllib.request.Request(
+        RAW.format(repo=repo),
+        headers={"Cache-Control": "no-cache", "Pragma": "no-cache"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
         return response.read().decode("utf-8")
 
 
