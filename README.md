@@ -5,7 +5,7 @@
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
 | [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 385 |
-| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 466 |
+| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 476 |
 | [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 235 |
 | [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 233 |
 | [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 147 |
@@ -334,3 +334,24 @@ if ".." in PurePosixPath(str(resolved)).parts:
 **그리고 이번에도 제 프로브가 먼저 틀렸다.** `RegisteredTool`을 없는 인자명으로 불렀고, 생성자가 낸 `TypeError`를 "거부가 동작한다"로 읽었다 — **일곱 개가 그렇게 초록불이었고 검사하려던 거부는 하나도 실행되지 않았다.** 헬퍼가 실제 서명으로 한 벌을 만들고 필요한 것만 바꾸도록 고쳤다.
 
 **저장소의 가드가 나를 두 번 잡았다.** 새 파일이 형제 저장소 의존을 퍼뜨리자 `test_optional_sibling.py`가 이름으로 짚었고, 허용 목록을 넓히는 대신 이미 의존하는 파일로 옮겼다 — **가드가 잡았을 때 가드를 고치는 것은 가드를 없애는 것과 같다.**
+
+---
+
+## README가 앞세운 기능이 절반에서 멈춰 있었다
+
+지난 회차에 "에이전트 층은 pytest가 아니라 실행 중인 앱이 돌린다"고 **검증 없이 주장**했다. 재봤다: 앱을 계측한 채로 스모크 13개를 전부 돌려도 `backend/agents/executor.py`는 **9%에서 움직이지 않았다.** 제 주장이 틀렸다 — Agent Mode 엔드포인트 12개를 **아무도 치지 않고 있었다.**
+
+손으로 몰아보니 사슬이 절반에서 멈춘다. 학습은 `AutoML training completed`로 성공 관측을 남기고, **바로 다음 설명 도구가 "Run AutoML training before explanation."으로 실패**한다. 같은 요청 안에서 한쪽은 썼고 한쪽은 못 읽었다.
+
+원인은 스레드 경계였다. `automl_training_tool`은 이미 도는 이벤트 루프 안에서 호출되면 코루틴을 `ThreadPoolExecutor`로 넘기는데 — FastAPI 요청 안이 그렇다 — **`ContextVar`는 스레드 경계를 넘지 않는다.** 새 스레드는 빈 문맥에서 시작해 기본 스코프를 읽고, `set_target`과 `run_cv`가 **요청 버킷이 아니라 공유 기본 버킷**에 썼다.
+
+**조용한 쪽이 더 나쁘다.** 요청별 격리를 넣은 이유가 정확히 그 공유 버킷을 없애는 것이었다 — 로그인이 붙은 배포에서 A가 올린 데이터를 B의 다음 요청이 분석하던 문제. **이 경로만 그리로 되돌아가 있었고, 실행된 적이 없어 아무도 몰랐다.**
+
+| | 완료 단계 |
+|---|---|
+| 고치기 전 | 7 / 10 (설명 실패, 검증·보고서·API 준비도 미실행) |
+| 고친 뒤 | **10 / 10** |
+
+**진단 중에 제 흐름이 두 번 틀렸다.** 처음엔 별도 프로젝트를 만들어 넘겨서 `dataset_state_mismatch`로 막혔는데 — 업로드가 데이터셋에 프로젝트를 자동으로 붙인다 — **게이트가 옳았고 제가 틀렸다.** "Agent Mode가 실행되지 않는다"고 보고할 뻔했다. 로그인 응답의 토큰 필드명도 추측해서 틀렸다.
+
+스모크를 만들어 CI에 넣었다. **보는 것은 "200이 왔다"가 아니라 "사슬이 끝까지 갔다"이다** — 200은 그때도 계속 오고 있었다. 수정 전 서버에 대고 돌리면 3건이 실패하고 종료 코드 1을 낸다.
