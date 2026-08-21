@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import argparse
 import sys
 from pathlib import Path
 
@@ -64,7 +65,13 @@ def resolve(module: str) -> Path | None:
     return Path(found) if result.returncode == 0 and found else None
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--require-importable", action="store_true",
+                        help="설치되지 않은 모듈을 실패로 센다 (CI용). 없으면 "
+                             "아무것도 설치되지 않은 환경에서 이 검사는 통과한다.")
+    arguments = parser.parse_args(argv)
+
     failures = 0
     unresolved = 0
     for module, repo in MODULES.items():
