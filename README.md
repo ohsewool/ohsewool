@@ -5,8 +5,8 @@
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
 | [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 392 |
-| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 493 |
-| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 249 |
+| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 500 |
+| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 258 |
 | [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 245 |
 | [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 159 |
 
@@ -68,7 +68,7 @@
 ## 이 저장소들을 만들면서 찾은 것들
 
 위 다섯 가지는 각 저장소가 **처음** 걸려 넘어진 것이다. 그 뒤로 회차마다 한 형태씩
-훑었고, 기록은 [**FINDINGS.md**](FINDINGS.md)에 있다 — 22개 항목.
+훑었고, 기록은 [**FINDINGS.md**](FINDINGS.md)에 있다 — 23개 항목.
 
 무거운 것 셋만 꼽으면:
 
