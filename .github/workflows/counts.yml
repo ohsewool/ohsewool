@@ -22,3 +22,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: python3 tools/check_counts.py
+
+      - name: Refuse a table of contents that goes nowhere
+        # FINDINGS.md의 목차를 만들 때 앵커 두 개가 깨져 있었다 - GitHub은 제목을
+        # 소문자로 바꾼 뒤 앵커를 만드는데 생성기가 그러지 않았다. 링크는 멀쩡해
+        # 보이고 눌러본 사람만 안다. 손으로 확인할 것이 아니다.
+        run: python3 tools/check_anchors.py
