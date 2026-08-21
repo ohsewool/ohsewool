@@ -6,9 +6,9 @@
 |---|---|---|
 | [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 392 |
 | [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 493 |
-| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 243 |
-| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 239 |
-| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 153 |
+| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 249 |
+| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 245 |
+| [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 159 |
 
 전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
 
@@ -445,3 +445,21 @@ if ".." in PurePosixPath(str(resolved)).parts:
 **결정을 바꾼 것이 문제가 아니라 바꾼 것을 적지 않은 것이 문제다.** 이 저장소들의 원칙이 "뒤집은 판단은 근거와 함께 남긴다"인데, 정작 **이 프로젝트가 무엇인지를 정하는 결정**이 빠져 있었다.
 
 계획 문서는 고치지 않고 기록으로 선언했다. **체크박스 77개를 지금 채우면 계획을 그대로 따른 것처럼 보이고, 어디서 갈라졌는지가 사라진다.** `DECISIONS.md`만 검사에서 제외했다 — **폐기된 결정을 보관하는 것이 그 문서의 본분**이다.
+
+---
+
+## 지시 파일이 이미 만든 것을 금지하고 있었다
+
+지난 회차에 `rag-profile-selector`의 `AGENTS.md`가 몇 달간 쓰지 않는 코퍼스를 지시하고 있던 것을 고쳤다. **`AGENTS.md`는 README와 다르다** — README는 읽는 사람에게 설명하고, `AGENTS.md`는 **다음 작업이 무엇을 해도 되는지 정한다.** 틀리면 오해로 끝나지 않고 다음 변경을 잘못된 방향으로 민다. 그래서 네 저장소를 전부 훑었다.
+
+`document-intelligence/AGENTS.md`:
+
+> Current `AUTO_READY` work is limited to inspection, planning, documentation, and environment bootstrap. **It does not authorize application implementation.**
+
+그 저장소에는 증거 모델·좌표·계층·읽기 순서 구현과 실제 PDF 어댑터가 있고 테스트 159개가 돈다. `mcp-gateway`와 `rag-profile-selector`도 같은 단계 게이트를 들고 있었다. **셋 다** "작업 전에 `docs/TASKS.md`와 `docs/STATUS.md`를 읽으라"고 하는데, 그 둘은 지난 회차에 **기록으로 선언한 문서**다 — 사슬이 끊겨 있었다.
+
+`modelmate/AGENTS.md`는 **"PR-01 범위 — 금지: DB 스키마 구현, 실제 LLM 에이전트 구현"**을 들고 있었다. PR-32까지 진행됐고 둘 다 구현돼 있다(`persistence.py` 996줄, 선택적 LLM 플래너).
+
+**지우지 않고 소진 표시를 달았다.** 착수 때 무엇을 의도적으로 미뤘는지는 지울 이유가 없고, modelmate의 PR-01 범위는 그 파일 자신의 핵심 규칙("로드맵 전체를 한 번에 구현하지 말 것")이 실제로 어떻게 적용됐는지 보여주는 예다.
+
+**안전 제약은 손대지 않았다** — 실서비스·실계정 금지, 실크리덴셜 금지, 공격적 익스플로잇 금지, 승인 없는 다운로드·장시간 작업 금지, 측정하지 않은 결과 주장 금지. **소진된 것은 단계 게이트뿐이다.** 테스트가 그 구분을 확인한다: 게이트가 표시 없이 남아 있으면 실패하고, 안전 제약이 사라져도 실패한다.
