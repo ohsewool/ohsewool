@@ -5,9 +5,9 @@
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
 | [**agent-safety-core**](https://github.com/ohsewool/agent-safety-core) | 승인과 실행의 결속, 1회용 lease, `UNKNOWN_OUTCOME`의 명시적 처리 | 385 |
-| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 446 |
-| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 215 |
-| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 209 |
+| [**modelmate**](https://github.com/ohsewool/modelmate) | 비전문가용 모델링 도우미 — 증거가 없으면 확신하지 않는 리포트 | 466 |
+| [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 235 |
+| [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 233 |
 | [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 147 |
 
 전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
@@ -316,3 +316,21 @@ if ".." in PurePosixPath(str(resolved)).parts:
 도달 불가한 줄은 지우지 않고 **`pragma: no cover`와 이유를 달았다**. `reading_order.py`의 시작점 개수·순환 검사는 구역 4개까지 전수 탐색으로 앞선 검사가 모두 선점함을 확인했다. 중복 페이지 키 검사는 `dict`으로는 못 만들지만 서명이 `Mapping`을 받으므로 **도달 가능**해서 테스트를 넣었다 — 셋을 뭉뚱그렸으면 하나는 영영 안 도는 검사로 남았을 것이다.
 
 **이 결함은 코드를 읽어서가 아니라 커버리지가 "그 줄이 한 번도 실행되지 않았다"고 알려줘서 나왔다.** 미실행 거부 분기는 목록으로 만들어 하나씩 쏴볼 가치가 있다.
+
+---
+
+## 커버리지가 가리킨 곳을 하나씩 쏴봤다
+
+지난 회차에 두 저장소에서 "미실행 줄이 거의 전부 거부 분기"라는 것을 발견했고, 나머지 셋으로 들고 갔다. **거부와 탐지는 이 저장소들의 제품 자체**다.
+
+**`mcp-gateway`** — `metadata_integrity` 89%, `registry` 88%. 위조된 `integrity_id`, 비유한수 메타데이터, 객체가 아닌 스키마, 미등록 서버의 도구 등 거부 18개가 한 번도 실행된 적이 없었다. 전부 동작한다. 더 흥미로운 건 **탐지** 쪽이었다: `compare_metadata`가 **서버가 통째로 나타나거나 사라지는 것**을 잡는 경로가 안 돌고 있었다 — 도구 변경은 테스트가 있었고 서버 단위는 없었다. rug-pull 탐지에서 더 큰 사건 쪽이 비어 있었던 셈이다.
+
+**`rag-profile-selector`** — `regret` 82%, `profiles` 92%. 전부 동작한다. 여기서 **성격이 다른 것 하나를 구분해 기록했다**: `probes.py`의 승인 목록 관문은 호출자 입력이 아니라 `extract()` **자기 출력**을 검사한다. 오늘 어떤 입력으로도 발동하지 않는 게 정상이고, 지키는 대상이 미래의 편집이기 때문이다. **발동할 수 없는 검사와 오늘 발동할 일이 없는 불변식은 다르다** — 승인 목록을 좁혀 관문이 물 줄 안다는 것을 보였다.
+
+**`modelmate`** — `backend/agents/resume.py`가 **0%**였다. 백엔드 어디에서도 import하지 않는데 문서 두 곳이 현재 구성 요소로 설명하고 import 예제까지 실었다. 모듈 자신은 정직했다("skeleton for PR-12"). 어긋난 건 문서 쪽이라 **코드를 배선하는 대신 문서를 사실에 맞췄다** — 제품의 재개는 이미 rerun 엔드포인트가 담당하고, 쓰지 않는 두 번째 경로를 배선하면 같은 질문에 장치가 둘이 된다.
+
+**그런데 테스트를 쓰다가 진짜가 나왔다.** `review_queue.PROCEEDING_ACTIONS`에 `resume.py`가 만드는 계획 동작 넷 중 **셋만** 있었다. 빠진 `prepare_replan_placeholder` 때문에, 검토자가 `fix_required`로 해결한 항목이 재계획 단계에서 **또 검토 항목을 만드는 고리**가 생긴다. 해결된 것을 다시 검토하게 만드는 건 검토를 무의미하게 만드는 가장 빠른 길이다. 오늘은 영향이 없다 — `resume.py`가 배선돼 있지 않아서 조용히 남아 있었다.
+
+**그리고 이번에도 제 프로브가 먼저 틀렸다.** `RegisteredTool`을 없는 인자명으로 불렀고, 생성자가 낸 `TypeError`를 "거부가 동작한다"로 읽었다 — **일곱 개가 그렇게 초록불이었고 검사하려던 거부는 하나도 실행되지 않았다.** 헬퍼가 실제 서명으로 한 벌을 만들고 필요한 것만 바꾸도록 고쳤다.
+
+**저장소의 가드가 나를 두 번 잡았다.** 새 파일이 형제 저장소 의존을 퍼뜨리자 `test_optional_sibling.py`가 이름으로 짚었고, 허용 목록을 넓히는 대신 이미 의존하는 파일로 옮겼다 — **가드가 잡았을 때 가드를 고치는 것은 가드를 없애는 것과 같다.**
