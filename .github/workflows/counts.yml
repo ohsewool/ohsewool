@@ -100,3 +100,54 @@ jobs:
         # 날짜를 FINDINGS.md에 적고, 그 날짜가 낡으면 여기서 말한다.
         working-directory: work/ohsewool
         run: python3 tools/check_mutation_freshness.py
+
+  # 문서를 읽는 검사가 그 문서에 물려 있는지 본다. **주 1회만 돈다.**
+  #
+  # 이 확인은 각 저장소의 스위트를 실제로 돌리므로 다섯 저장소의 의존성이 전부
+  # 필요하고, `document-instelligence`의 PDF 어댑터 검사는 논문을 내려받는다.
+  # push마다 도는 관문에 네트워크를 넣으면 "검사가 물려 있지 않다"와 "arxiv에
+  # 닿지 못했다"가 같은 빨간불 뒤로 숨는다 — `rag-profile-selector`의 코퍼스
+  # 워크플로가 이미 그 교훈을 적어둔 그대로다.
+  #
+  # 주 1회 실패는 조사하는 실패다. 매 push 실패는 꺼버리는 실패다.
+  doc-tests-bite:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: work/ohsewool
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/agent-safety-core, path: work/agent-safety-core }
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/mcp-gateway, path: work/mcp-gateway }
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/modelmate, path: work/modelmate }
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/rag-profile-selector, path: work/rag-profile-selector }
+      - uses: actions/checkout@v4
+        with: { repository: ohsewool/document-intelligence, path: work/document-intelligence }
+
+      - name: Install what the five suites need
+        run: |
+          python3 -m pip install -q --upgrade pip setuptools wheel
+          for repo in agent-safety-core mcp-gateway rag-profile-selector document-intelligence modelmate; do
+            if [ -f "work/$repo/requirements.txt" ]; then
+              python3 -m pip install -q -r "work/$repo/requirements.txt"
+            fi
+          done
+          for repo in agent-safety-core mcp-gateway rag-profile-selector document-intelligence; do
+            python3 -m pip install -q -e "work/$repo" --no-deps --no-build-isolation
+          done
+
+      - name: Refuse a document check that is not attached to its document
+        # 대조 방향이 둘이라는 것이 요점이다. 값을 읽는 검사는 문서를 **비우면**
+        # 실패해야 하고, 낡은 주장이 없음을 단언하는 검사는 비우면 당연히 통과하므로
+        # **심어야** 한다. 손으로 훑다가 그 구분을 놓쳐 멀쩡한 검사를 결함으로 볼
+        # 뻔했다(2026-08-22).
+        working-directory: work/ohsewool
+        run: python3 tools/check_doc_tests_bite.py
