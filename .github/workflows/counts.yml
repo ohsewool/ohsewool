@@ -23,6 +23,16 @@ jobs:
           python-version: '3.12'
       - run: python3 tools/check_counts.py
 
+      - name: Refuse a findings count that has gone stale
+        # 프로필 README가 "42개 항목"이라고 적고 있었다. 실제로는 58개였다 — 열여섯
+        # 회차 동안 항목은 늘고 문장은 그대로였다. **이 포트폴리오가 잡아온 종류의
+        # 결함이 자기 입구에 있었다.**
+        #
+        # 기존 둘이 못 본 이유가 요점이다: `check_counts.py`는 저장소별 테스트 수를
+        # 보고, `check_anchors.py`는 링크가 실재하는 제목을 가리키는지 본다. **항목
+        # 수를 세는 것은 아무것도 없었고 둘 다 초록이었다.**
+        run: python3 tools/check_findings_index.py
+
       - name: Refuse a table of contents that goes nowhere
         # FINDINGS.md의 목차를 만들 때 앵커 두 개가 깨져 있었다 - GitHub은 제목을
         # 소문자로 바꾼 뒤 앵커를 만드는데 생성기가 그러지 않았다. 링크는 멀쩡해
