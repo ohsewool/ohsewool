@@ -15,6 +15,13 @@ Three shapes, all of which pass forever and count toward the total:
   empty_loop     `for x in y: assert ...` where y can be empty, so the loop body
                  never runs. The same vacuous-all() shape found in mcp-gateway's
                  policy, in test clothing.
+  no_tests       a test file that defines no test at all. It contributes nothing,
+                 and **nothing else notices**: the collected-count guards add zero
+                 and see zero, and the vacuity checks below need a test to exist
+                 before they can call it vacuous. Added 2026-08-23 after
+                 `mcp-gateway/tests/test_declared_dependencies.py` sat at 0 bytes
+                 for four days - found by running each file on its own, where it
+                 exits 5 with `no tests ran`.
   shadowed       two tests with the same name in one class or module. Python
                  keeps the second and drops the first; pytest says nothing. The
                  count falls by one and nothing looks at the count. Added
@@ -108,6 +115,24 @@ def _name(node: ast.AST) -> str:
     return ""
 
 
+def counts_a_test(tree: ast.Module) -> bool:
+    """이 파일이 테스트를 하나라도 정의하는가.
+
+    `mcp-gateway/tests/test_declared_dependencies.py`가 0바이트로 나흘 있었다.
+    개수 대조는 0을 더해도 0이라 눈치채지 못하고, 아래 공허 검사들은 **테스트가
+    있어야** 그것이 공허한지 볼 수 있다. 파일 하나씩 따로 돌려보고서야 드러났다.
+    """
+    def walk(body: list) -> bool:
+        for node in body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
+                return True
+            if isinstance(node, ast.ClassDef) and walk(node.body):
+                return True
+        return False
+
+    return walk(tree.body)
+
+
 def shadowed_tests(tree: ast.Module, where: Path) -> list[tuple]:
     """같은 이름의 테스트가 한 클래스/모듈 안에 둘 이상 있는가.
 
@@ -152,6 +177,9 @@ def main(argv: list[str] | None = None) -> int:
                 by_kind.setdefault(finding[3], []).append(finding)
             for finding in shadowed_tests(tree, path.relative_to(root)):
                 by_kind.setdefault("shadowed", []).append(finding)
+            if not counts_a_test(tree):
+                by_kind.setdefault("no_tests", []).append(
+                    (path.relative_to(root), 1, "(파일에 테스트가 없다)", "no_tests"))
 
     if not scanned:
         print(f"FAILED — {root} 아래에서 테스트 파일을 하나도 찾지 못했다. "
@@ -163,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
     # 실제로 `expects_no_raise`를 만들었을 때 그렇게 됐다. 목록에 없는 종류가
     # 나오면 아래에서 실패로 알린다.
     order = ("always_true", "no_assertion", "expects_no_raise",
-             "assertions_only_in_a_loop", "shadowed")
+             "assertions_only_in_a_loop", "shadowed", "no_tests")
     for kind in order:
         found = by_kind.get(kind, [])
         print(f"── {kind}: {len(found)}")
@@ -186,6 +214,13 @@ def main(argv: list[str] | None = None) -> int:
     #
     # `shadowed`는 두 번째 관문이다. 판단이 필요 없다 - 같은 이름의 테스트 둘은
     # 어떤 읽기로도 의도가 아니고, 앞엣것은 **존재하지 않게 된다.**
+    empty = by_kind.get("no_tests", [])
+    if empty:
+        # 판단이 필요 없다. 테스트 파일에 테스트가 없다는 것은 어떤 읽기로도
+        # 의도가 아니고, **개수 대조도 공허 검사도 그것을 보지 못한다.**
+        print(f"FAILED — 테스트가 하나도 없는 테스트 파일 {len(empty)}개.")
+        return 1
+
     shadows = by_kind.get("shadowed", [])
     if shadows:
         print(f"FAILED — 같은 이름의 테스트 {len(shadows)}쌍. 앞엣것은 실행되지 않는다.")
