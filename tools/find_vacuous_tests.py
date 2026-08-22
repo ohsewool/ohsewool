@@ -15,6 +15,11 @@ Three shapes, all of which pass forever and count toward the total:
   empty_loop     `for x in y: assert ...` where y can be empty, so the loop body
                  never runs. The same vacuous-all() shape found in mcp-gateway's
                  policy, in test clothing.
+  shadowed       two tests with the same name in one class or module. Python
+                 keeps the second and drops the first; pytest says nothing. The
+                 count falls by one and nothing looks at the count. Added
+                 2026-08-22 after writing two `test_but_not_when_it_is_not_asked`
+                 in one class - the first one simply stopped existing.
 
 Reports, does not judge. The output is a list to read, not a gate - but a list
 worth reading has to separate what needs attention from what does not.
@@ -103,6 +108,31 @@ def _name(node: ast.AST) -> str:
     return ""
 
 
+def shadowed_tests(tree: ast.Module, where: Path) -> list[tuple]:
+    """같은 이름의 테스트가 한 클래스/모듈 안에 둘 이상 있는가.
+
+    파이썬은 뒤엣것을 남기고 앞엣것을 버린다. pytest는 아무 말도 하지 않는다 —
+    수집 개수가 하나 줄 뿐이고, 그 숫자를 보는 것이 없으면 **테스트 하나가 조용히
+    사라진다.** 이 저장소들은 개수를 CI가 대조하지만, 그 대조는 새 테스트가 함께
+    들어오면 상쇄돼 보이지 않는다.
+    """
+    found: list[tuple] = []
+
+    def walk(body: list, prefix: str) -> None:
+        seen: dict[str, int] = {}
+        for node in body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
+                if node.name in seen:
+                    found.append((where, node.lineno,
+                                  f"{prefix}{node.name} (앞: {seen[node.name]}줄)", "shadowed"))
+                seen[node.name] = node.lineno
+            if isinstance(node, ast.ClassDef):
+                walk(node.body, f"{node.name}.")
+
+    walk(tree.body, "")
+    return found
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT,
@@ -115,10 +145,13 @@ def main(argv: list[str] | None = None) -> int:
     for repo in REPOS:
         for path in sorted((root / repo / "tests").rglob("test_*.py")):
             scanned += 1
+            tree = ast.parse(path.read_text(encoding="utf-8"))
             visitor = Visitor(path.relative_to(root))
-            visitor.visit(ast.parse(path.read_text(encoding="utf-8")))
+            visitor.visit(tree)
             for finding in visitor.findings:
                 by_kind.setdefault(finding[3], []).append(finding)
+            for finding in shadowed_tests(tree, path.relative_to(root)):
+                by_kind.setdefault("shadowed", []).append(finding)
 
     if not scanned:
         print(f"FAILED — {root} 아래에서 테스트 파일을 하나도 찾지 못했다. "
@@ -129,7 +162,8 @@ def main(argv: list[str] | None = None) -> int:
     # 고정 목록이다. 새 범주를 만들고 여기 넣지 않으면 **찾아놓고 보고하지 않는다** —
     # 실제로 `expects_no_raise`를 만들었을 때 그렇게 됐다. 목록에 없는 종류가
     # 나오면 아래에서 실패로 알린다.
-    order = ("always_true", "no_assertion", "expects_no_raise", "assertions_only_in_a_loop")
+    order = ("always_true", "no_assertion", "expects_no_raise",
+             "assertions_only_in_a_loop", "shadowed")
     for kind in order:
         found = by_kind.get(kind, [])
         print(f"── {kind}: {len(found)}")
@@ -149,6 +183,13 @@ def main(argv: list[str] | None = None) -> int:
     #
     # 관문으로 삼을 수 있는 것만 관문으로 삼는다. 나머지까지 실패로 만들면 사람들이
     # 이 검사를 끄고, 끈 검사는 없는 검사다.
+    #
+    # `shadowed`는 두 번째 관문이다. 판단이 필요 없다 - 같은 이름의 테스트 둘은
+    # 어떤 읽기로도 의도가 아니고, 앞엣것은 **존재하지 않게 된다.**
+    shadows = by_kind.get("shadowed", [])
+    if shadows:
+        print(f"FAILED — 같은 이름의 테스트 {len(shadows)}쌍. 앞엣것은 실행되지 않는다.")
+        return 1
     vacuous = by_kind.get("no_assertion", [])
     if vacuous:
         print(f"FAILED — 부르지도 단언하지도 않는 테스트 {len(vacuous)}개. "
