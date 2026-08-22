@@ -81,6 +81,26 @@ def main(argv: list[str] | None = None) -> int:
         problems.append(f"{stamp}은 하루 넘게 미래다. 기록이 아니라 오타일 것이다.")
     if caught != probes:
         problems.append(f"기록된 결과가 {caught}/{probes}이다 — 잡히지 않은 변이가 남아 있다.")
+
+    # **신선하다는 것과 지금 있는 것을 상대로 돈다는 것은 다르다.**
+    #
+    # 2026-08-23에 재봤다: 날짜는 하루 전이었고 27/27이었는데, 그 사이 열 회차 동안
+    # 넣은 안전장치가 있는 **파일 스물한 개에 탐침이 하나도 닿지 않고 있었다.**
+    # 보존 시계, 감사 로그 검증, 승인 프로파일 문지기, 읽기 순서 유일성, 소유권
+    # 문지기 — 전부 밖에 있었다. 날짜만 보는 검사는 그것을 말할 수 없다.
+    #
+    # 완전한 해법은 아니다(목록이 늘어야 하는지는 사람이 판단한다). 대신 **기록과
+    # 목록이 갈리는 것**은 막는다 — 탐침을 더하고 기록을 안 고치거나, 기록만 고치고
+    # 탐침을 안 더하면 여기서 말한다.
+    declared = len(re.findall(r'Probe\(\s*"', (ROOT / "tools" / "mutate.py").read_text(encoding="utf-8")))
+    controls_in_source = len(re.findall(r"expect_caught=False", (ROOT / "tools" / "mutate.py").read_text(encoding="utf-8")))
+    real = declared - controls_in_source
+    if real != int(probes):
+        problems.append(
+            f"기록은 탐침 {probes}개인데 `mutate.py`에는 {real}개다"
+            f"(전체 {declared} − 대조 {controls_in_source}). "
+            f"목록을 늘렸으면 기록도 다시 돌려서 갱신하라."
+        )
     if uncaught_controls != controls:
         problems.append(f"음성 대조 {uncaught_controls}/{controls} — 대조가 하나라도 "
                         f"잡히면 그 회차 결과는 전부 무효다.")

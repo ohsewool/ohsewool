@@ -153,6 +153,56 @@ PROBES = (
     Probe("document-intelligence", "src/document_intelligence/adapters/pdfplumber.py",
           'return "unclassified"', 'return "degenerate_box"',
           "an unrecognised rejection is not disguised"),
+
+    # ── 2026-08-22에 더한 열 개 ──────────────────────────────────────────────
+    #
+    # 탐침 목록이 **날짜로는 신선하고 범위로는 낡아 있었다.** 신선도 검사는 "언제
+    # 돌렸나"만 말하고 "지금 있는 것을 상대로 도는가"는 말하지 않는다 — 가드가
+    # 하한선일 때와 같은 종류의 눈멂이다.
+    #
+    # 재봤다: 안전장치가 있는 파일 스물한 개에 탐침이 하나도 닿지 않았다. 최근 열
+    # 회차에 넣은 것들이 전부 그 안에 있다(보존 시계, 감사 로그 검증, 승인 프로파일
+    # 문지기, 읽기 순서 유일성, 소유권 문지기 …). 각 저장소의 **중심 주장** 쪽부터
+    # 열 개를 더한다.
+    Probe("agent-safety-core", "core/retention.py",
+          "now = self._clock() if now is None else now", "now = self._clock()",
+          "retention reads the caller's clock, not its own"),
+    Probe("agent-safety-core", "core/access.py",
+          "if not self.get(actor_id).holds(permission):", "if False:",
+          "a permission that is not held is refused"),
+    Probe("mcp-gateway", "src/mcp_gateway/audit.py",
+          'if _integrity_hash(integrity) != _record_hash(record, integrity.get("previous_hash", "")):',
+          "if False:",
+          "a modified audit record is detected"),
+    Probe("mcp-gateway", "src/mcp_gateway/limits.py",
+          'folded = unicodedata.normalize("NFKC", value).strip().casefold()',
+          "folded = value",
+          "six spellings of one session id are one session"),
+    Probe("rag-profile-selector", "src/rag_profile_selector/profiles.py",
+          'raise ProfileValidationError(f"unknown approved profile_id: {profile_id!r}") from error',
+          "return next(iter(_CATALOG.values()))",
+          "an unapproved profile id is refused"),
+    # 첫 판은 `if len(shared) < 2:`를 껐고 **잡히지 않았다.** 그 줄은 단축이지
+    # 통제가 아니다 — 공유 항목이 둘 미만이면 아래 이중 루프가 순서쌍을 못 만들어
+    # `total == 0`으로 떨어지고 거기서도 0.5가 나온다. 탐침이 **하중을 받지 않는
+    # 줄**을 겨눴던 것이고, 그것을 잡히게 만들려고 테스트를 더하는 것은 구현 세부를
+    # 고정하는 일이다. 실제 하중은 "모르면 0.5"라는 값 자체에 있다.
+    Probe("rag-profile-selector", "src/rag_profile_selector/probes.py",
+          "    if total == 0:\n        return 0.5", "    if total == 0:\n        return 0.0",
+          "rank agreement says 'unknown' rather than guessing"),
+    Probe("document-intelligence", "src/document_intelligence/reading_order.py",
+          'raise ValueError("reading-order regions must be unique")', "pass",
+          "duplicate reading-order regions are refused"),
+    Probe("document-intelligence", "src/document_intelligence/coordinates.py",
+          'raise CoordinateError(f"{name} must be finite")', "pass",
+          "a non-finite coordinate is refused"),
+    Probe("modelmate", "backend/main_parts/044_access_control.part",
+          'return bool(user and owner_user_id and owner_user_id == user.get("sub"))',
+          "return True",
+          "another user's resource is refused"),
+    Probe("modelmate", "backend/main_parts/051_auth_history_debug.part",
+          'if not user or user.get("role") != "admin":', "if False:",
+          "a non-admin is refused the admin list"),
 )
 
 # Harmless edits that must NOT be caught. If one is, the run is void.
