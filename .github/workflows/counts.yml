@@ -161,3 +161,35 @@ jobs:
         # 뻔했다(2026-08-22).
         working-directory: work/ohsewool
         run: python3 tools/check_doc_tests_bite.py
+
+      - name: Refuse a bite check that has stopped covering its population
+        # **항목이 물려 있는 것과 항목이 충분한 것은 다르다.** 2026-08-23에 세어보니
+        # 열셋 전부 물려 있었고 그 열셋이 덮는 것은 스물다섯 중 여섯이었다. 예전
+        # 안전장치는 `len(CASES) < 5`라는 하한선이었고, 하한선은 목록이 줄어드는 것만
+        # 본다 — 모집단이 목록에서 멀어지는 것은 못 본다.
+        #
+        # 위 단계가 이미 범위를 본다. 여기서는 **그 범위 검사가 살아 있는지**를 본다:
+        # 훑을 것이 없으면 실패해야 한다.
+        #
+        # 종료 코드만 보면 안 된다. 처음에 그렇게 썼고 **대조가 엉뚱한 이유로
+        # 빨간불이었다** — `REPOS`를 비우면 모집단이 비는 동시에 `UNCONTROLLED`
+        # 열셋이 전부 "낡음"으로 걸린다. 지키려던 안전장치를 지워도 그 낡음 때문에
+        # 여전히 실패했다. **엉뚱한 이유로 도는 대조는 대조가 아니다.**
+        # 그래서 그 문장이 나오는지를 본다.
+        working-directory: work/ohsewool
+        run: |
+          output=$(python3 - <<'PY' 2>&1 || true
+          import sys
+          sys.path.insert(0, "tools")
+          import check_doc_tests_bite as bite
+          bite.REPOS = ()
+          bite.UNCONTROLLED = {}
+          sys.exit(1 if bite.scope_report() else 0)
+          PY
+          )
+          if ! printf '%s' "$output" | grep -q "하나도 못 찾았다"; then
+            echo "::error::빈 모집단인데 '하나도 못 찾았다'가 안 나왔다. 범위 검사의 빈손 방지가 죽었다."
+            printf '%s\n' "$output"
+            exit 1
+          fi
+          echo "빈 모집단에서는 그 이유를 대며 실패한다 — 범위 검사가 살아 있다"
