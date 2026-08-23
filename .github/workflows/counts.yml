@@ -162,6 +162,18 @@ jobs:
         working-directory: work/ohsewool
         run: python3 tools/check_doc_tests_bite.py
 
+      - name: Documents and the tests that read them still agree
+        # **같은 실수를 두 번 했다.** 스위트를 돌리고 → 문서를 고치고 → 다시 안
+        # 돌린 채 밀었다. 2026-08-23 document-intelligence(AGENTS와 README의 개수),
+        # 2026-08-24 modelmate(`/api/columns`를 울타리 밖에 적어 그 라우트가 "불린
+        # 것"이 됐다). 첫 번째 뒤에 교훈을 적어두고 두 번째를 했다.
+        #
+        # 기억을 고치는 대신 값을 낮췄다. 문서를 읽는 검사 27개는 다 합쳐 1분 남짓이라
+        # 문서를 만졌으면 그것만 돌리면 된다. 여기서는 **그 도구가 아직 도는지**를 본다 —
+        # 손으로 쓰는 도구는 아무도 안 부르면 조용히 썩는다.
+        working-directory: work/ohsewool
+        run: python3 tools/check_docs_still_agree.py
+
       - name: Refuse a bite check that has stopped covering its population
         # **항목이 물려 있는 것과 항목이 충분한 것은 다르다.** 2026-08-23에 세어보니
         # 열셋 전부 물려 있었고 그 열셋이 덮는 것은 스물다섯 중 여섯이었다. 예전
