@@ -110,6 +110,8 @@ UNCONTROLLED = {
     "mcp-gateway/tests/test_code_that_never_ran.py": "README.md — 다음 회차",
     "modelmate/tests/test_connections_close_on_every_path.py": "README.md — 다음 회차",
     "modelmate/tests/test_declared_dependencies.py": "requirements.txt — 다음 회차",
+    "agent-safety-core/tests/test_declared_dependencies.py": "pyproject.toml/requirements.txt — 다음 회차",
+    "document-intelligence/tests/test_declared_dependencies.py": "pyproject.toml — 다음 회차",
     "modelmate/tests/test_every_route_has_a_caller.py": "README.md — 다음 회차",
     "modelmate/tests/test_the_explainer_does_not_claim_shap.py": "requirements.txt — 다음 회차",
     "rag-profile-selector/tests/test_rejections_that_were_never_fired.py": "README.md — 다음 회차",
@@ -161,6 +163,9 @@ CASES = (
     Case("modelmate", "docs/usage-limits.md",
          ("tests/test_one_definition_of_today.py",), "presence",
          label="'오늘'이 서버의 하루임을 적어뒀다"),
+    Case("modelmate", "docs/coverage-record.json",
+         ("tests/test_the_coverage_numbers_are_current.py",), "presence",
+         label="README의 커버리지가 마지막 측정과 같다"),
 
     # 2026-08-23에 더한 여섯. 전부 **문서가 자기 수를 말하는** 검사다 —
     # 이 포트폴리오가 "42개 항목"으로 이미 한 번 당한 자리라 여기부터 걸었다.
