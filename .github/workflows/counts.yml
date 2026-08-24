@@ -176,6 +176,14 @@ jobs:
             python3 -m pip install -q -e "work/$repo" --no-deps --no-build-isolation
           done
 
+      - name: Fetch the corpus the rag bite-case needs
+        # 없으면 rag의 코퍼스 크기 항목이 **판정 불가**다 — 대상 검사가 전부
+        # skip돼 비워도 종료 코드 0이 나온다. 첫 dispatch 실행이 그걸 "물려 있지
+        # 않다"로 잘못 보고했고, 이제 도구가 셋(물림/안 물림/판정 불가)을 가른다.
+        # 받기가 실패하면 그대로 실패한다 — 주 1회 실패는 조사하는 실패다.
+        working-directory: work/rag-profile-selector
+        run: python3 scripts/fetch_kr_law_corpus.py
+
       - name: Refuse a document check that is not attached to its document
         # 대조 방향이 둘이라는 것이 요점이다. 값을 읽는 검사는 문서를 **비우면**
         # 실패해야 하고, 낡은 주장이 없음을 단언하는 검사는 비우면 당연히 통과하므로

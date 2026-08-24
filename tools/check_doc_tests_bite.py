@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import re
 import signal
 import subprocess
 import sys
@@ -275,6 +276,23 @@ def bites(case: Case) -> tuple[bool, str]:
             [sys.executable, "-m", "pytest", *case.tests, "-q",
              "-p", "no:cacheprovider", "--no-header"],
             cwd=ROOT / case.repo, capture_output=True, text=True, timeout=1800)
+        # **skip은 pass가 아니다.** 대상 검사가 자원(코퍼스 등)이 없어 전부
+        # 건너뛰면 종료 코드는 0이고, 그걸 "비워도 통과 → 물려 있지 않다"로
+        # 읽으면 틀린다 — 검사는 문서를 안 읽은 게 아니라 **아예 안 돌았다.**
+        #
+        # 2026-08-24에 doc-tests-bite 잡 첫 실행이 정확히 이걸 밟았다. CI에는
+        # 코퍼스가 없어 `test_published_corpus_size.py`가 전부 skip됐고, 이
+        # 도구는 rag의 그 항목을 "물려 있지 않다"로 보고했다. 로컬(코퍼스 있음)
+        # 에서는 물려 있다. **판정 불가를 통과나 실패 어느 쪽으로도 세지 않고
+        # 따로 말한다** — 조용히 어느 쪽에 넣든 거짓말이 된다.
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+        summary = next((line for line in reversed(plain.splitlines())
+                        if "passed" in line or "failed" in line
+                        or "skipped" in line or "error" in line), "")
+        ran = bool(re.search(r"\d+ (passed|failed)", summary))
+        if result.returncode == 0 and not ran and "skipped" in summary:
+            return False, ("판정 불가 — 대상 검사가 전부 건너뛰어졌다"
+                           f" ({summary.strip()[:40]}). 자원을 먼저 준비하라")
         return result.returncode != 0, ""
     finally:
         path.write_text(original, encoding="utf-8")
