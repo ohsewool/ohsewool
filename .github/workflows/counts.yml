@@ -73,6 +73,10 @@ jobs:
         with: { repository: ohsewool/rag-profile-selector, path: work/rag-profile-selector }
       - uses: actions/checkout@v4
         with: { repository: ohsewool/document-intelligence, path: work/document-intelligence }
+      - uses: actions/checkout@v4
+        # 2026-08-25 대표작 편입과 함께. 이 줄이 없으면 설명 검사가
+        # "quoteops-ai의 README를 못 찾았다"로 빨간불 — 실제로 그랬다.
+        with: { repository: ohsewool/quoteops-ai, path: work/quoteops-ai }
 
       - name: Refuse a test that cannot fail
         # 실패 조건은 하나뿐이다: 부르지도 단언하지도 않는 테스트. 나머지 두 범주는
