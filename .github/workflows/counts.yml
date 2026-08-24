@@ -133,6 +133,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 tools/check_repo_descriptions.py
 
+      - name: Refuse a weekly workflow that died quietly
+        # 주간 워크플로는 값비싼 측정이라 push마다 못 돈다. 그 대가: 화요일 새벽에
+        # 죽으면 **누가 아는가.** 여섯 저장소의 Actions 탭을 매주 열어볼 사람은
+        # 없다 — 아무도 안 보는 빨간불은 없는 검사다. 그래서 매 push에 도는 이
+        # 잡이 다른 저장소의 마지막 스케줄 실행 결론을 읽는다.
+        # 97회차에 dispatch로 처음 돌려보니 셋 다 죽어 있었다 — 이건 그 다음
+        # 문제(계속 살아 있는가)를 지킨다. 이력 없음·실패·8일 초과를 잡는다.
+        working-directory: work/ohsewool
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/check_scheduled_workflows.py
+
   # 문서를 읽는 검사가 그 문서에 물려 있는지 본다. **주 1회만 돈다.**
   #
   # 이 확인은 각 저장소의 스위트를 실제로 돌리므로 다섯 저장소의 의존성이 전부
