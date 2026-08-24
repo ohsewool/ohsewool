@@ -110,10 +110,20 @@ def trace(repo: str) -> dict[tuple[str, int], set[str]]:
     config.write_text(
         "[run]\ndynamic_context = test_function\nbranch = True\n"
         f"source = {SOURCES[repo]}\n", encoding="utf-8")
-    subprocess.run([sys.executable, "-m", "coverage", "run",
-                    "--rcfile", str(config), "-m", "pytest", "-q"],
-                   cwd=base, capture_output=True, text=True)
-    config.unlink(missing_ok=True)
+    try:
+        subprocess.run([sys.executable, "-m", "coverage", "run",
+                        "--rcfile", str(config), "-m", "pytest", "-q"],
+                       cwd=base, capture_output=True, text=True)
+    finally:
+        # **`finally`가 아니면 중단될 때 형제 저장소에 남는다.** 2026-08-24에
+        # 실행 중인 감사를 껐더니 `document-intelligence`에 `.coveragerc-unasserted`가
+        # 그대로 남았다(`git status`에 `??`로 떴다). 이 저장소들은 같은 모양을 이미
+        # 겪었다 — QA 스크립트가 업로드한 CSV를 안 지워 저장소가 매번 커졌고, 그
+        # 파일들이 커밋돼 픽스처처럼 앉아 있었다.
+        #
+        # 스위트가 몇 분 걸리는 도구라 사람이 중간에 끊는 일은 예외가 아니라 기본에
+        # 가깝다. 정상 경로에서만 지우는 것은 지우지 않는 것과 비슷하다.
+        config.unlink(missing_ok=True)
 
     database = base / ".coverage"
     if not database.exists():
