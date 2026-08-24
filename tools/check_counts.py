@@ -28,7 +28,10 @@ import urllib.request
 from pathlib import Path
 
 REPOS = ("agent-safety-core", "modelmate", "rag-profile-selector",
-         "mcp-gateway", "document-intelligence")
+         "mcp-gateway", "document-intelligence",
+         # 2026-08-25 대표작 편입과 동시에 감시 대상에 넣는다 — 표에 있는데
+         # 여기 없는 행은 이 검사가 막으려는 바로 그 무방비 주장이 된다.
+         "quoteops-ai")
 RAW = "https://raw.githubusercontent.com/ohsewool/{repo}/main/README.md"
 
 # `pytest tests/ -q   # 334 tests` in each sibling README.

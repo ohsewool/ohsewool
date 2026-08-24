@@ -1,6 +1,6 @@
 ## 에이전트가 부작용을 낼 때 무엇이 잘못되는가
 
-다섯 저장소가 한 질문의 서로 다른 면을 다룬다. **주장이 검사 가능한가, 그리고 그 검사가 실제로 무언가를 본 결과인가.**
+여섯 저장소가 한 질문의 서로 다른 면을 다룬다. **주장이 검사 가능한가, 그리고 그 검사가 실제로 무언가를 본 결과인가.**
 
 | | 무엇을 하는가 | 테스트 |
 |---|---|---|
@@ -9,8 +9,9 @@
 | [**rag-profile-selector**](https://github.com/ohsewool/rag-profile-selector) | 인용이 문서의 어디를 가리키는지 측정 · 한국어 법령 코퍼스 | 348 |
 | [**mcp-gateway**](https://github.com/ohsewool/mcp-gateway) | MCP 서버 앞의 보안 프록시 — 정책 차단, JIT 승인, 해시 체인 감사 | 379 |
 | [**document-intelligence**](https://github.com/ohsewool/document-intelligence) | 파서에 의존하지 않는 문서 증거 모델 | 234 |
+| [**quoteops-ai**](https://github.com/ohsewool/quoteops-ai) | 승인 계보가 남는 견적·가격(CPQ) SaaS — AI는 숫자를 못 바꾸고, CI는 실제 PostgreSQL로 돈다 | 69 |
 
-전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, `modelmate`는 애플리케이션이라 `uvicorn backend.main:app`으로 띄운다.
+전부 Apache-2.0, CI 초록불. 라이브러리 넷은 `pip install -e .`로 설치되고, 애플리케이션 둘(`modelmate`, `quoteops-ai`)은 `uvicorn backend.main:app`으로 띄운다. `quoteops-ai`의 테스트 69는 백엔드 수다 — 프런트엔드 31개는 별도 러너(vitest)라 이 표에 안 세고, 저장소 CI가 따로 센다.
 
 ---
 
