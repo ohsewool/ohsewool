@@ -39,22 +39,6 @@ jobs:
         # 보이고 눌러본 사람만 안다. 손으로 확인할 것이 아니다.
         run: python3 tools/check_anchors.py
 
-      - name: Refuse a repository description that miscounts
-        # **파일 밖에 있는 주장 표면.** 이 저장소의 개수 검사는 전부 파일을 본다 —
-        # 프로필 표, 각 README, `pytest --collect-only`. 그런데 GitHub 저장소 설명은
-        # 파일이 아니라 메타데이터라 어느 체크아웃에도 없다.
-        #
-        # 2026-08-24에 외부 리뷰가 짚었고 재보니 **다섯 전부 틀렸다**(1186↔239,
-        # 565↔273, 379↔124, 348↔150, 234↔52). 목록 화면에서 README를 열기 전에
-        # 보는 한 줄이 그것이다.
-        #
-        # 이 포트폴리오가 내세우는 문장이 "검증되지 않은 초록불을 믿지 않는다"인데
-        # 그 주장을 하는 첫 화면의 숫자가 다섯 배 틀려 있으면, 읽는 사람이 의심하는
-        # 것은 숫자가 아니라 그 문장이다.
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 tools/check_repo_descriptions.py
-
   # 다섯 도구 중 둘만 CI에 있었고 셋은 손으로 돌리는 것이었다. 그 셋은 여러 회차
   # 동안 아무도 돌리지 않았고, 그동안 `mutate.py`는 문법 오류를 "잡힘"으로 읽고
   # 있었으며 `find_vacuous_tests.py`는 한 기계의 절대 경로를 들고 있어 다른 어디에서도
@@ -126,6 +110,28 @@ jobs:
         # 날짜를 FINDINGS.md에 적고, 그 날짜가 낡으면 여기서 말한다.
         working-directory: work/ohsewool
         run: python3 tools/check_mutation_freshness.py
+
+      - name: Refuse a repository description that miscounts
+        # **처음엔 `counts` 잡에 넣었고 첫 실행에서 빨간불이었다.** 그 잡은
+        # ohsewool만 체크아웃하므로 형제 README가 없고, 검사는 "하나도 확인하지
+        # 못했다"로 멈췄다 — 확인 못 한 것을 통과로 세지 않게 만들어둔 그 가드가
+        # 자기 자리를 잘못 잡은 나를 잡은 것이다. 형제가 있는 이 잡으로 옮겼다.
+        #
+        # **파일 밖에 있는 주장 표면.** 이 저장소의 개수 검사는 전부 파일을 본다 —
+        # 프로필 표, 각 README, `pytest --collect-only`. 그런데 GitHub 저장소 설명은
+        # 파일이 아니라 메타데이터라 어느 체크아웃에도 없다.
+        #
+        # 2026-08-24에 외부 리뷰가 짚었고 재보니 **다섯 전부 틀렸다**(1186↔239,
+        # 565↔273, 379↔124, 348↔150, 234↔52). 목록 화면에서 README를 열기 전에
+        # 보는 한 줄이 그것이다.
+        #
+        # 이 포트폴리오가 내세우는 문장이 "검증되지 않은 초록불을 믿지 않는다"인데
+        # 그 주장을 하는 첫 화면의 숫자가 다섯 배 틀려 있으면, 읽는 사람이 의심하는
+        # 것은 숫자가 아니라 그 문장이다.
+        working-directory: work/ohsewool
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/check_repo_descriptions.py
 
   # 문서를 읽는 검사가 그 문서에 물려 있는지 본다. **주 1회만 돈다.**
   #
