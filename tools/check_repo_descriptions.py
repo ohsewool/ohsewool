@@ -49,7 +49,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 REPOS = ("agent-safety-core", "modelmate", "rag-profile-selector",
-         "mcp-gateway", "document-intelligence")
+         "mcp-gateway", "document-intelligence",
+         # 2026-08-25 편입 — 쿼트의 README를 현행화하던 날, 설명에는 테스트 수가
+         # 아예 없었다. 다섯을 고치고도 여섯째를 같은 상태로 두면 같은 실수다.
+         "quoteops-ai")
 
 COUNT_IN_README = re.compile(r"#\s*(\d+)\s*tests")
 COUNT_IN_DESCRIPTION = re.compile(r"(\d+)\s*tests")
